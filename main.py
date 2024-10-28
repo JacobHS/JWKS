@@ -7,7 +7,6 @@ import json
 import jwt
 import datetime
 import sqlite3
-import os
 
 # Database file name
 DB_FILE = 'totally_not_my_privateKeys.db'

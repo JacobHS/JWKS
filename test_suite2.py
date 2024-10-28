@@ -5,7 +5,6 @@ from urllib import request
 from threading import Thread
 import json
 import time
-import os
 import sqlite3
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
