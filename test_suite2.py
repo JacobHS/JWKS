@@ -15,7 +15,9 @@ import datetime
 from main import MyServer, hostName, serverPort, DB_FILE
 
 # Setting up unittest
+# This allows you to setup test functions that will be timed and recorded for completion or failure
 class TestSuite(unittest.TestCase):
+     # This is the setup before the test suite is run. This connects us to the JWKS server.
     @classmethod
     def setUpClass(cls) -> None:
         cls.server = HTTPServer((hostName, serverPort), MyServer)
@@ -27,12 +29,12 @@ class TestSuite(unittest.TestCase):
         # Initialize the database for tests
         cls.init_db()
 
+    # This ends the unittest shuting down connections to the server
     @classmethod
     def tearDownClass(cls) -> None:
         cls.server.shutdown()
         cls.server_thread.join()
         time.sleep(1)  # Wait for the server thread to fully close
-        os.remove(DB_FILE)  # Cleanup database file after tests
 
     @classmethod
     def init_db(cls):
@@ -43,30 +45,35 @@ class TestSuite(unittest.TestCase):
         conn.commit()
         conn.close()
 
+    # Test for the PUT method. Tests for a 405 status meaning that it is not allowed.
     def test_put_method(self):
         req = request.Request(f'http://{hostName}:{serverPort}/', method='PUT')
         with self.assertRaises(request.HTTPError) as context:
             request.urlopen(req)
         self.assertEqual(context.exception.code, 405)
 
+    # Test for the PATCH method. Tests for a 405 status meaning that it is not allowed.
     def test_patch_method(self):
         req = request.Request(f'http://{hostName}:{serverPort}/', method='PATCH')
         with self.assertRaises(request.HTTPError) as context:
             request.urlopen(req)
         self.assertEqual(context.exception.code, 405)
 
+    # Test for the DEL method. Tests for a 405 status meaning that it is not allowed.
     def test_delete_method(self):
         req = request.Request(f'http://{hostName}:{serverPort}/', method='DELETE')
         with self.assertRaises(request.HTTPError) as context:
             request.urlopen(req)
         self.assertEqual(context.exception.code, 405)
 
+    # Test for the HEAD method. Tests for a 405 status meaning that it is not allowed.
     def test_head_method(self):
         req = request.Request(f'http://{hostName}:{serverPort}/', method='HEAD')
         with self.assertRaises(request.HTTPError) as context:
             request.urlopen(req)
         self.assertEqual(context.exception.code, 405)
 
+    # Sends a POST request through /auth and checks for 200 Response. Will also decode the token and make sure data is correct.
     def test_post_auth_valid(self):
         req = request.Request(f'http://{hostName}:{serverPort}/auth', method='POST')
         response = request.urlopen(req)
@@ -79,6 +86,7 @@ class TestSuite(unittest.TestCase):
         decoded = jwt.decode(token, public_key, algorithms=["RS256"])
         self.assertEqual(decoded['user'], 'username')
 
+    # Inserts a new expired key into the DB and sends a POST request through /auth for expired tokens and compares
     def test_post_auth_expired(self):
         # First, we need to manually insert an expired key into the database
         self.insert_expired_key()
@@ -94,6 +102,8 @@ class TestSuite(unittest.TestCase):
         with self.assertRaises(jwt.ExpiredSignatureError):
             jwt.decode(expired_token, public_key, algorithms=["RS256"])
 
+    # Sends a GET request to the server .well-known/jwks.json endpoint and looks for 200 response.
+    # Also validates at least one key is present
     def test_get_jwks(self):
         req = request.Request(f'http://{hostName}:{serverPort}/.well-known/jwks.json', method='GET')
         response = request.urlopen(req)
@@ -107,6 +117,7 @@ class TestSuite(unittest.TestCase):
         self.assertEqual(key['alg'], 'RS256')
         self.assertEqual(key['kty'], 'RSA')
 
+    # Function that inserts an expire key into the DB for the test_post_auth_expired function
     def insert_expired_key(self):
         # Function to insert an expired key for testing
         conn = sqlite3.connect(DB_FILE)
@@ -122,6 +133,7 @@ class TestSuite(unittest.TestCase):
         conn.commit()
         conn.close()
 
+    # Used by both POST tests to get the public keys from the DB for comparison
     def get_public_key(self, expired=False):
         # Function to retrieve public key for decoding JWT
         conn = sqlite3.connect(DB_FILE)
